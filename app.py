@@ -7,10 +7,10 @@ import yfinance as yf
 import plotly.express as px
 from textblob import TextBlob
 
-# --- 1. CONFIGURATION & LAYOUT ---
-st.set_page_config(page_title="Stock Dashboard v2.0", page_icon="📈", layout="wide")
+# --- 1. CONFIGURATION ---
+st.set_page_config(page_title="Indian Stock News Dashboard", page_icon="📈", layout="wide")
 
-# (Your original Stock Dictionary)
+# (Your Dictionary - kept same)
 STOCKS = dict(sorted({
     "ABB.NS": "ABB India",
     "ABBOTT.NS": "Abbott India",
@@ -22,21 +22,27 @@ STOCKS = dict(sorted({
     "ADANIPORTS.NS": "Adani Ports & SEZ",
     "ADANITOTAL.NS": "Adani Total Gas",
     "ADITYABIRLA.NS": "Aditya Birla Capital",
-    "AB_REAL_ESTATE": "A B Real Estate", 
+    "AB_REAL_ESTATE": "A B Real Estate",
     "AFCONS_INFRASTR": "Afcons Infrastr.",
+    "AHERA.NS": "Ahera Industries",
     "ALEMBICLTD.NS": "Alembic Pharma",
     "ALKEM.NS": "Alkem Laboratories",
     "ALLIED_BLENDERS": "Allied Blenders",
+    "AMARA_RAJA_ENER": "Amara Raja Ener.",
     "ANGELONE.NS": "Angel One",
     "APOLLOHOSP.NS": "Apollo Hospitals",
     "APOLLO.MED": "Apollo Medicals",
     "ASHOKLEY.NS": "Ashok Leyland",
+    "ASAHI_INDIA_GLAS": "Asahi India Glas",
     "ASIANPAINT.NS": "Asian Paints",
+    "ATHER_ENERGY": "Ather Energy",
     "AUROBINDO.NS": "Aurobindo Pharma",
     "AVENUESUPER.NS": "Avenue Supermarts",
     "AXISBANK.NS": "Axis Bank",
+    "BATAINDIA.NS": "Bata India",
     "BANKBARODA.NS": "Bank of Baroda",
     "BAYERCROP.NS": "Bayer Crop Sci.",
+    "BELRISE_INDUSTRI": "Belrise Industri",
     "BEML.NS": "BEML Ltd",
     "BERGERPAINT.NS": "Berger Paints",
     "BHARTIARTL.NS": "Bharti Airtel",
@@ -47,16 +53,26 @@ STOCKS = dict(sorted({
     "BOSCHLTD.NS": "Bosch",
     "BPCL.NS": "Bharat Petroleum Corporation Ltd",
     "BRITANNIA.NS": "Britannia Industries",
-    "CAMS.NS": "Cams Services",
-    "CAPLIPOINT.NS": "Caplin Point Lab",
+    "BROOKFIELD_INDIA": "Brookfield India",
+    "CAMS_SERVICES": "Cams Services",
+    "CAPLIN_POINT_LAB": "Caplin Point Lab",
+    "CAPRI_GLOBAL": "Capri Global",
+    "CARBORUNDUM_UNI": "Carborundum Uni.",
     "CASTROLIND.NS": "Castrol India",
+    "CENTURY_PLYBOARD": "Century Plyboard",
     "CESC.NS": "CESC",
     "CHAMBLFERT.NS": "Chambal Fert.",
+    "CHOICE_INTL": "Choice Intl.",
     "CHOLAFIN.NS": "Cholamandalam Investment & Finance",
+    "CIE_AUTOMOTIVE": "CIE Automotive",
     "CIPLA.NS": "Cipla",
+    "CLEAN_SCIENCE": "Clean Science",
     "COALINDIA.NS": "Coal India",
     "COLPAL.NS": "Colgate-Palmolive",
+    "CONCORD_BIOTECH": "Concord Biotech",
     "COROMANDEL.NS": "Coromandel International",
+    "CROMPTON_GR_CON": "Crompton Gr. Con",
+    "CUBE_HIGHWAYS": "Cube Highways",
     "CUMMINSIND.NS": "Cummins India",
     "DABUR.NS": "Dabur India",
     "DEEPAKFERT.NS": "Deepak Fertilis.",
@@ -65,10 +81,21 @@ STOCKS = dict(sorted({
     "DLF.NS": "DLF Ltd",
     "DIVISLAB.NS": "Divi's Laboratories",
     "DRREDDY.NS": "Dr Reddy's Laboratories",
+    "EID_PARRY": "EID Parry",
     "EICHERMOT.NS": "Eicher Motors",
+    "EIH": "EIH",
+    "ELGI_EQUIPMENTS": "Elgi Equipments",
+    "EMBASSY_DEVELOP": "Embassy Develop",
+    "ETERNAL.NS": "Eternal Ltd",
     "FSN.NS": "FSN E-Commerce (Nykaa)",
+    "FORCE_MOTORS": "Force Motors",
     "FORTIS.NS": "Fortis Healthcare",
     "GAIL.NS": "GAIL (India)",
+    "GABRIEL_INDIA": "Gabriel India",
+    "GALLANTT_ISPAT_L": "Gallantt Ispat L",
+    "GENINSUR.NS": "Gen Insur",
+    "GODAWARI_POWER": "Godawari Power",
+    "GODREJ_AGROVET": "Godrej Agrovet",
     "GODREJCP.NS": "Godrej Consumer Products",
     "GODREJPROP.NS": "Godrej Properties",
     "GRANULES.NS": "Granules India",
@@ -82,15 +109,20 @@ STOCKS = dict(sorted({
     "HINDALCO.NS": "Hindalco Industries",
     "HINDUNILVR.NS": "Hindustan Unilever",
     "HINDZINC.NS": "Hindustan Zinc",
+    "HITACHIENERGY.NS": "Hitachi Energy",
     "HPCL.NS": "Hindustan Petroleum",
+    "HYUNDAI.NS": "Hyundai Motor India",
     "ICICIBANK.NS": "ICICI Bank",
     "ICICILOMBARD.NS": "ICICI Lombard",
     "ICICIPRULI.NS": "ICICI Prudential Life",
     "IDBI.NS": "IDBI Bank",
+    "IFCI": "IFCI",
     "INDHOTEL.NS": "Indian Hotels Company",
     "INDIANB.NS": "Indian Bank",
     "INDIGO.NS": "InterGlobe Aviation",
+    "INDEGENE": "Indegene",
     "INFY.NS": "Infosys",
+    "IOB.NS": "Indian Overseas Bank",
     "IOC.NS": "Indian Oil Corporation",
     "IRFC.NS": "IRFC",
     "JSWENERGY.NS": "JSW Energy",
@@ -111,6 +143,7 @@ STOCKS = dict(sorted({
     "MUTHOOTFIN.NS": "Muthoot Finance",
     "NMDC.NS": "NMDC Ltd",
     "NTPC.NS": "NTPC Limited",
+    "NTPCGREEN.NS": "NTPC Green Energy",
     "NESTLEIND.NS": "Nestle India",
     "OIL.NS": "Oil India",
     "ONGC.NS": "Oil & Natural Gas Corporation",
@@ -154,12 +187,17 @@ STOCKS = dict(sorted({
     "ZYDUSLIFE.NS": "Zydus Lifesciences",
 }.items(), key=lambda x: x[0].upper()))
 
-# --- 2. FETCH NEWS FUNCTION ---
+# --- 2. IMPROVED FETCH NEWS FUNCTION ---
 @st.cache_data(ttl=600)
 def fetch_news(company_name):
-    """Fetch top 10 news articles from Google News RSS."""
-    # Logic to fetch news
-    query = company_name.replace(" ", "+") + "+stock+India"
+    """Fetch strict stock market news."""
+    
+    # OLD QUERY: company_name + " stock India"
+    # NEW QUERY: company_name + " share price target buy sell result"
+    # This forces Google to show financial news, not just general company news.
+    query = f'{company_name} share price target buy sell results'
+    query = query.replace(" ", "+")
+    
     rss_url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
 
     try:
@@ -169,18 +207,16 @@ def fetch_news(company_name):
         items = soup.findAll('item')
 
         articles = []
-        skip_keywords = ["Q1", "Q2", "Q3", "Q4", "Quarter", "Result", "Earnings", "Financial Results"]
+        # REMOVED: The code that skipped "Earnings" and "Results"
+        # Now you will see Quarterly results!
 
         for item in items:
             title = item.title.text.strip()
-            if any(keyword.lower() in title.lower() for keyword in skip_keywords):
-                continue
-
-            summary = item.description.text if item.description else "No description available"
+            summary = item.description.text if item.description else ""
             summary_clean = BeautifulSoup(summary, "html.parser").get_text()
             published = item.pubDate.text if item.pubDate else None
 
-            # --- NEW: Sentiment Analysis ---
+            # Sentiment Analysis
             blob = TextBlob(summary_clean)
             sentiment_score = blob.sentiment.polarity
 
@@ -191,9 +227,7 @@ def fetch_news(company_name):
                 "published": published,
                 "sentiment": sentiment_score
             })
-
-            if len(articles) >= 10:
-                break
+            if len(articles) >= 15: break # Increased to 15 articles
 
         return articles
 
@@ -201,107 +235,71 @@ def fetch_news(company_name):
         st.error(f"Error fetching news: {e}")
         return []
 
-# --- 3. MAIN APP LAYOUT ---
-st.title("Indian Stock News Dashboard v2.0 🇮🇳📈")
-st.markdown("### Interactive Edition")
-
-# Sidebar
+# --- 3. STREAMLIT LAYOUT ---
+st.title("Indian Stock News Dashboard 🇮🇳📈")
 st.sidebar.header("Stock Selection")
-search_query = st.sidebar.text_input("Search Stock by Name or Ticker:")
 
-# Filter logic
+search_query = st.sidebar.text_input("Search Stock by Name or Ticker:")
 filtered_stocks = {k: v for k, v in STOCKS.items() if search_query.lower() in k.lower() or search_query.lower() in v.lower()}
+
 selected_ticker = st.sidebar.selectbox("Select a Stock:", options=["--- Select a Stock ---"] + list(filtered_stocks.keys()))
 
-# --- 4. INTERACTIVE LOGIC (No 'Fetch News' Button) ---
 if selected_ticker != "--- Select a Stock ---":
     company_name = STOCKS[selected_ticker]
-    
-    # --- A. FETCH STOCK PRICE ---
-    # Attempt to fetch price if key looks like a ticker (contains .NS)
-    stock_data = pd.DataFrame() 
-    
-    # We only try to fetch the chart if the key is a valid ticker format (e.g. "RELIANCE.NS")
-    # If the key is just a name like "A B Real Estate", we skip the chart to avoid errors.
+
+    # --- 1. PRICE & CHART SECTION ---
+    # We use the Ticker (ABB.NS) for the Price
     is_valid_ticker = ".NS" in selected_ticker or ".BO" in selected_ticker
     
-    with st.spinner(f"Analyzing {company_name}..."):
-        if is_valid_ticker:
-            try:
-                stock_data = yf.download(selected_ticker, period="3mo", progress=False)
-            except Exception:
-                pass 
+    if is_valid_ticker:
+        with st.spinner(f"Fetching Price Chart for {selected_ticker}..."):
+            stock_data = yf.download(selected_ticker, period="3mo", progress=False)
         
-        # Always fetch news
-        news_articles = fetch_news(company_name)
+        if not stock_data.empty:
+            # Metrics
+            current_price = stock_data['Close'].iloc[-1]
+            if isinstance(current_price, pd.Series): 
+                 current_price = current_price.iloc[0]
+            
+            st.metric(label=f"{company_name} Price", value=f"₹{current_price:.2f}")
+            
+            # Chart
+            st.subheader("Price Trend (3 Months)")
+            fig = px.line(stock_data.reset_index(), x='Date', y='Close')
+            st.plotly_chart(fig, use_container_width=True)
 
-    # --- B. DISPLAY METRICS ---
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Price Metric
-    if not stock_data.empty:
-        try:
-            current_price = float(stock_data['Close'].iloc[-1])
-            prev_price = float(stock_data['Close'].iloc[-2])
-            price_change = current_price - prev_price
-            col1.metric("Current Price", f"₹{current_price:,.2f}", f"{price_change:.2f}")
-        except:
-            col1.metric("Price", "N/A")
-    else:
-        col1.metric("Price", "No Chart Data")
+    # --- 2. NEWS SECTION ---
+    st.header(f"📰 Market News for {company_name}")
+    st.caption("Showing: Price targets, Buy/Sell calls, and Quarterly Results.")
 
-    # Sentiment Metrics
-    if news_articles:
-        pos_news = sum(1 for a in news_articles if a['sentiment'] > 0.05)
-        neg_news = sum(1 for a in news_articles if a['sentiment'] < -0.05)
-        col2.metric("Total Articles", len(news_articles))
-        col3.metric("Positive News", f"{pos_news} 🟢")
-        col4.metric("Negative News", f"{neg_news} 🔴")
-    
-    st.markdown("---")
-
-    # --- C. PRICE CHART (Interactive) ---
-    if not stock_data.empty:
-        st.subheader(f"Price Trend: {company_name}")
-        chart_data = stock_data.reset_index()
-        fig = px.line(chart_data, x='Date', y='Close', title=f'{selected_ticker} - 3 Month Performance')
-        fig.update_layout(xaxis_title="Date", yaxis_title="Price (INR)", template="plotly_white")
-        st.plotly_chart(fig, use_container_width=True)
-    elif not is_valid_ticker:
-         st.warning(f"⚠️ Price chart not available for '{selected_ticker}' because the ID is not a standard Yahoo Finance ticker (e.g., RELIANCE.NS). Only News will be shown.")
-    
-    # --- D. NEWS LIST (Interactive Expanders) ---
-    st.subheader(f"📰 Latest News Analysis")
-    st.caption(f"Last updated: {datetime.now().strftime('%b %d, %Y %I:%M %p')}")
+    news_articles = fetch_news(company_name)
 
     if news_articles:
         for article in news_articles:
-            # Color coding
+            # Sentiment Color
             score = article['sentiment']
             if score > 0.05:
-                sentiment_label = "🟢 Bullish"
                 color = "green"
+                emoji = "🟢"
             elif score < -0.05:
-                sentiment_label = "🔴 Bearish"
                 color = "red"
+                emoji = "🔴"
             else:
-                sentiment_label = "⚪ Neutral"
                 color = "grey"
+                emoji = "⚪"
 
-            # Expander: Click to open!
-            with st.expander(f"{sentiment_label} | {article['title']}"):
-                st.markdown(f"**Source:** Google News | **Sentiment Score:** :{color}[{score:.2f}]")
+            with st.expander(f"{emoji} {article['title']}"):
+                st.markdown(f"**Sentiment Score:** :{color}[{score:.2f}]")
                 st.write(article['summary'])
                 st.markdown(f"[🔗 Read Full Article]({article['link']})")
                 if article["published"]:
-                     st.caption(f"Published: {article['published']}")
+                    st.caption(f"Published: {article['published']}")
 
-        # CSV Download
-        df_news = pd.DataFrame(news_articles)
-        st.download_button("📥 Download News CSV", data=df_news.to_csv(index=False), file_name=f"{company_name}_news.csv")
-
+        # CSV download
+        df = pd.DataFrame(news_articles)
+        st.download_button("📥 Download News CSV", data=df.to_csv(index=False), file_name=f"{company_name}_news.csv")
     else:
         st.info(f"No recent news found for {company_name}.")
 
 else:
-    st.info("Select a stock from the sidebar to view the dashboard.")
+    st.info("Select a stock from the sidebar to start.")
