@@ -1,16 +1,16 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import yfinance as yf
-import plotly.express as px
 from textblob import TextBlob
+import email.utils
 
-# --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Indian Stock News Dashboard", page_icon="📈", layout="wide")
+# --- 1. APP CONFIGURATION ---
+st.set_page_config(page_title="StockBytes India", page_icon="⚡", layout="centered")
 
-# (Your Dictionary - kept same)
+# Your Stock List
 STOCKS = dict(sorted({
     "ABB.NS": "ABB India",
     "ABBOTT.NS": "Abbott India",
@@ -187,15 +187,22 @@ STOCKS = dict(sorted({
     "ZYDUSLIFE.NS": "Zydus Lifesciences",
 }.items(), key=lambda x: x[0].upper()))
 
-# --- 2. IMPROVED FETCH NEWS FUNCTION ---
+# --- 2. NEWS ENGINE ---
 @st.cache_data(ttl=600)
-def fetch_news(company_name):
-    """Fetch strict stock market news."""
-    
-    # OLD QUERY: company_name + " stock India"
-    # NEW QUERY: company_name + " share price target buy sell result"
-    # This forces Google to show financial news, not just general company news.
-    query = f'{company_name} share price target buy sell results'
+def fetch_news(company_name, time_period_days):
+    """
+    Fetch limited (10) relevant news articles.
+    """
+    # 1. Set Time Parameter for Google
+    if time_period_days == 365:
+        time_param = "when:1y"
+    elif time_period_days == 180:
+        time_param = "when:6m"
+    else:
+        time_param = "when:30d"
+
+    # 2. Search Query (Strict Financial Focus)
+    query = f'{company_name} share price target buy sell results {time_param}'
     query = query.replace(" ", "+")
     
     rss_url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
@@ -207,99 +214,111 @@ def fetch_news(company_name):
         items = soup.findAll('item')
 
         articles = []
-        # REMOVED: The code that skipped "Earnings" and "Results"
-        # Now you will see Quarterly results!
+        cutoff_date = datetime.now() - timedelta(days=time_period_days)
 
         for item in items:
             title = item.title.text.strip()
+            source = item.source.text if item.source else "Google News"
             summary = item.description.text if item.description else ""
             summary_clean = BeautifulSoup(summary, "html.parser").get_text()
-            published = item.pubDate.text if item.pubDate else None
+            link = item.link.text
+            
+            # Date Parsing
+            published_str = item.pubDate.text if item.pubDate else None
+            is_recent = False
+            
+            if published_str:
+                try:
+                    pub_date = email.utils.parsedate_to_datetime(published_str).replace(tzinfo=None)
+                    if pub_date >= cutoff_date:
+                        is_recent = True
+                except:
+                    is_recent = True 
 
-            # Sentiment Analysis
-            blob = TextBlob(summary_clean)
-            sentiment_score = blob.sentiment.polarity
+            if is_recent:
+                # Basic Sentiment
+                blob = TextBlob(summary_clean)
+                sentiment_score = blob.sentiment.polarity
 
-            articles.append({
-                "title": title,
-                "link": item.link.text,
-                "summary": summary_clean.strip(),
-                "published": published,
-                "sentiment": sentiment_score
-            })
-            if len(articles) >= 15: break # Increased to 15 articles
+                articles.append({
+                    "title": title,
+                    "source": source,
+                    "link": link,
+                    "summary": summary_clean.strip(),
+                    "published": published_str,
+                    "sentiment": sentiment_score
+                })
+
+            # LIMIT: STRICTLY 10 ARTICLES MAX
+            if len(articles) >= 10: 
+                break
 
         return articles
 
     except Exception as e:
-        st.error(f"Error fetching news: {e}")
+        st.error(f"Error: {e}")
         return []
 
-# --- 3. STREAMLIT LAYOUT ---
-st.title("Indian Stock News Dashboard 🇮🇳📈")
-st.sidebar.header("Stock Selection")
+# --- 3. UI LAYOUT ---
+st.title("StockBytes India ⚡🇮🇳")
+st.caption("Quick, relevant news headlines for Indian Stocks.")
 
-search_query = st.sidebar.text_input("Search Stock by Name or Ticker:")
+# Sidebar
+st.sidebar.header("Controls")
+time_options = {"Last 1 Month": 30, "Last 6 Months": 180, "Last 1 Year": 365}
+selected_time_label = st.sidebar.selectbox("History:", list(time_options.keys()), index=2)
+selected_days = time_options[selected_time_label]
+
+search_query = st.sidebar.text_input("Find Stock:")
 filtered_stocks = {k: v for k, v in STOCKS.items() if search_query.lower() in k.lower() or search_query.lower() in v.lower()}
+selected_ticker = st.sidebar.selectbox("Select Stock:", options=["--- Select ---"] + list(filtered_stocks.keys()))
 
-selected_ticker = st.sidebar.selectbox("Select a Stock:", options=["--- Select a Stock ---"] + list(filtered_stocks.keys()))
-
-if selected_ticker != "--- Select a Stock ---":
+# Main Area
+if selected_ticker != "--- Select ---":
     company_name = STOCKS[selected_ticker]
-
-    # --- 1. PRICE & CHART SECTION ---
-    # We use the Ticker (ABB.NS) for the Price
     is_valid_ticker = ".NS" in selected_ticker or ".BO" in selected_ticker
-    
-    if is_valid_ticker:
-        with st.spinner(f"Fetching Price Chart for {selected_ticker}..."):
-            stock_data = yf.download(selected_ticker, period="3mo", progress=False)
-        
-        if not stock_data.empty:
-            # Metrics
-            current_price = stock_data['Close'].iloc[-1]
-            if isinstance(current_price, pd.Series): 
-                 current_price = current_price.iloc[0]
-            
-            st.metric(label=f"{company_name} Price", value=f"₹{current_price:.2f}")
-            
-            # Chart
-            st.subheader("Price Trend (3 Months)")
-            fig = px.line(stock_data.reset_index(), x='Date', y='Close')
-            st.plotly_chart(fig, use_container_width=True)
 
-    # --- 2. NEWS SECTION ---
-    st.header(f"📰 Market News for {company_name}")
-    st.caption("Showing: Price targets, Buy/Sell calls, and Quarterly Results.")
+    # 1. Minimalist Header (Price + Name)
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.subheader(f"📰 {company_name}")
+    with col2:
+        # Just a tiny price check - no charts
+        if is_valid_ticker:
+            try:
+                stock_data = yf.download(selected_ticker, period="1d", progress=False)
+                if not stock_data.empty:
+                    current_price = stock_data['Close'].iloc[-1]
+                    if isinstance(current_price, pd.Series): current_price = current_price.iloc[0]
+                    st.metric("Live Price", f"₹{current_price:.2f}")
+            except:
+                st.write("")
 
-    news_articles = fetch_news(company_name)
+    st.markdown("---")
+
+    # 2. The News List
+    news_articles = fetch_news(company_name, selected_days)
 
     if news_articles:
         for article in news_articles:
-            # Sentiment Color
+            # Simple Emoji for Sentiment
             score = article['sentiment']
-            if score > 0.05:
-                color = "green"
-                emoji = "🟢"
-            elif score < -0.05:
-                color = "red"
-                emoji = "🔴"
-            else:
-                color = "grey"
-                emoji = "⚪"
+            if score > 0.05: emoji = "🟢"
+            elif score < -0.05: emoji = "🔴"
+            else: emoji = "⚪"
 
-            with st.expander(f"{emoji} {article['title']}"):
-                st.markdown(f"**Sentiment Score:** :{color}[{score:.2f}]")
+            with st.expander(f"{emoji} {article['source']} | {article['title']}"):
                 st.write(article['summary'])
-                st.markdown(f"[🔗 Read Full Article]({article['link']})")
-                if article["published"]:
-                    st.caption(f"Published: {article['published']}")
-
-        # CSV download
+                st.caption(f"📅 {article['published']} | Sentiment: {score:.2f}")
+                st.markdown(f"[🔗 Read Source]({article['link']})")
+        
+        # Download
+        st.markdown("---")
         df = pd.DataFrame(news_articles)
-        st.download_button("📥 Download News CSV", data=df.to_csv(index=False), file_name=f"{company_name}_news.csv")
+        st.download_button("📥 Save Headlines (CSV)", data=df.to_csv(index=False), file_name=f"{company_name}_headlines.csv")
+        
     else:
-        st.info(f"No recent news found for {company_name}.")
+        st.info(f"No recent news found for {company_name} in the last {selected_days} days.")
 
 else:
-    st.info("Select a stock from the sidebar to start.")
+    st.info("👈 Select a stock from the sidebar to fetch news.")
