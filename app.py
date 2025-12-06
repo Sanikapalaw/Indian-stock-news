@@ -8,13 +8,13 @@ import plotly.express as px
 from textblob import TextBlob
 
 # --- 1. CONFIGURATION & LAYOUT ---
-st.set_page_config(page_title="Indian Stock News Dashboard", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Stock Dashboard v2.0", page_icon="📈", layout="wide")
 
-# (Keeping your original Dictionary)
+# (Your original Stock Dictionary)
 STOCKS = dict(sorted({
     "ABB.NS": "ABB India",
     "ABBOTT.NS": "Abbott India",
-    "AAVAS.NS": "AAVAS Financiers", # Updated to valid ticker
+    "AAVAS.NS": "AAVAS Financiers",
     "ADANIESOL.NS": "Adani Energy Solutions",
     "ADANIENT.NS": "Adani Enterprises",
     "ADANIGREEN.NS": "Adani Green",
@@ -22,9 +22,9 @@ STOCKS = dict(sorted({
     "ADANIPORTS.NS": "Adani Ports & SEZ",
     "ADANITOTAL.NS": "Adani Total Gas",
     "ADITYABIRLA.NS": "Aditya Birla Capital",
-    "AB_REAL_ESTATE": "A B Real Estate", # Note: This key might not work in yfinance if not a ticker
+    "AB_REAL_ESTATE": "A B Real Estate", 
     "AFCONS_INFRASTR": "Afcons Infrastr.",
-    "ALEMBICLTD.NS": "Alembic Pharma", # Updated to valid ticker
+    "ALEMBICLTD.NS": "Alembic Pharma",
     "ALKEM.NS": "Alkem Laboratories",
     "ALLIED_BLENDERS": "Allied Blenders",
     "ANGELONE.NS": "Angel One",
@@ -154,11 +154,11 @@ STOCKS = dict(sorted({
     "ZYDUSLIFE.NS": "Zydus Lifesciences",
 }.items(), key=lambda x: x[0].upper()))
 
-
 # --- 2. FETCH NEWS FUNCTION ---
 @st.cache_data(ttl=600)
 def fetch_news(company_name):
     """Fetch top 10 news articles from Google News RSS."""
+    # Logic to fetch news
     query = company_name.replace(" ", "+") + "+stock+India"
     rss_url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
 
@@ -201,31 +201,38 @@ def fetch_news(company_name):
         st.error(f"Error fetching news: {e}")
         return []
 
-# --- 3. MAIN APP ---
-st.title("Indian Stock News Dashboard 🇮🇳📈")
+# --- 3. MAIN APP LAYOUT ---
+st.title("Indian Stock News Dashboard v2.0 🇮🇳📈")
+st.markdown("### Interactive Edition")
 
 # Sidebar
 st.sidebar.header("Stock Selection")
 search_query = st.sidebar.text_input("Search Stock by Name or Ticker:")
+
+# Filter logic
 filtered_stocks = {k: v for k, v in STOCKS.items() if search_query.lower() in k.lower() or search_query.lower() in v.lower()}
 selected_ticker = st.sidebar.selectbox("Select a Stock:", options=["--- Select a Stock ---"] + list(filtered_stocks.keys()))
 
-# --- 4. INTERACTIVE LOGIC ---
+# --- 4. INTERACTIVE LOGIC (No 'Fetch News' Button) ---
 if selected_ticker != "--- Select a Stock ---":
     company_name = STOCKS[selected_ticker]
     
-    # --- A. FETCH STOCK PRICE (yfinance) ---
-    # We attempt to fetch price if the key looks like a ticker (e.g., ends in .NS)
-    # If your dictionary key is just a name (e.g. "Aditya Infotech"), yfinance will fail gracefully.
+    # --- A. FETCH STOCK PRICE ---
+    # Attempt to fetch price if key looks like a ticker (contains .NS)
     stock_data = pd.DataFrame() 
+    
+    # We only try to fetch the chart if the key is a valid ticker format (e.g. "RELIANCE.NS")
+    # If the key is just a name like "A B Real Estate", we skip the chart to avoid errors.
+    is_valid_ticker = ".NS" in selected_ticker or ".BO" in selected_ticker
+    
     with st.spinner(f"Analyzing {company_name}..."):
-        try:
-            # Get 3 months of data
-            stock_data = yf.download(selected_ticker, period="3mo", progress=False)
-        except Exception:
-            pass # Ignore if ticker is invalid
-
-        # Fetch News
+        if is_valid_ticker:
+            try:
+                stock_data = yf.download(selected_ticker, period="3mo", progress=False)
+            except Exception:
+                pass 
+        
+        # Always fetch news
         news_articles = fetch_news(company_name)
 
     # --- B. DISPLAY METRICS ---
@@ -241,7 +248,7 @@ if selected_ticker != "--- Select a Stock ---":
         except:
             col1.metric("Price", "N/A")
     else:
-        col1.metric("Price", "No Data")
+        col1.metric("Price", "No Chart Data")
 
     # Sentiment Metrics
     if news_articles:
@@ -253,22 +260,23 @@ if selected_ticker != "--- Select a Stock ---":
     
     st.markdown("---")
 
-    # --- C. PRICE CHART (Plotly) ---
+    # --- C. PRICE CHART (Interactive) ---
     if not stock_data.empty:
         st.subheader(f"Price Trend: {company_name}")
-        # Reset index so 'Date' is a column accessible to Plotly
         chart_data = stock_data.reset_index()
         fig = px.line(chart_data, x='Date', y='Close', title=f'{selected_ticker} - 3 Month Performance')
         fig.update_layout(xaxis_title="Date", yaxis_title="Price (INR)", template="plotly_white")
         st.plotly_chart(fig, use_container_width=True)
+    elif not is_valid_ticker:
+         st.warning(f"⚠️ Price chart not available for '{selected_ticker}' because the ID is not a standard Yahoo Finance ticker (e.g., RELIANCE.NS). Only News will be shown.")
     
-    # --- D. NEWS LIST (With Expanders) ---
+    # --- D. NEWS LIST (Interactive Expanders) ---
     st.subheader(f"📰 Latest News Analysis")
     st.caption(f"Last updated: {datetime.now().strftime('%b %d, %Y %I:%M %p')}")
 
     if news_articles:
         for article in news_articles:
-            # Determine Color based on sentiment
+            # Color coding
             score = article['sentiment']
             if score > 0.05:
                 sentiment_label = "🟢 Bullish"
@@ -280,7 +288,7 @@ if selected_ticker != "--- Select a Stock ---":
                 sentiment_label = "⚪ Neutral"
                 color = "grey"
 
-            # Expander for interactivity
+            # Expander: Click to open!
             with st.expander(f"{sentiment_label} | {article['title']}"):
                 st.markdown(f"**Source:** Google News | **Sentiment Score:** :{color}[{score:.2f}]")
                 st.write(article['summary'])
@@ -293,7 +301,7 @@ if selected_ticker != "--- Select a Stock ---":
         st.download_button("📥 Download News CSV", data=df_news.to_csv(index=False), file_name=f"{company_name}_news.csv")
 
     else:
-        st.info(f"No recent news found for {company_name} (Earnings reports filtered out).")
+        st.info(f"No recent news found for {company_name}.")
 
 else:
     st.info("Select a stock from the sidebar to view the dashboard.")
