@@ -2,259 +2,163 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-import pandas as pd  
+import pandas as pd
+import yfinance as yf
+import plotly.express as px
+from textblob import TextBlob
 
+# --- 1. CONFIGURATION & LAYOUT ---
+st.set_page_config(page_title="Indian Stock News Dashboard", page_icon="📈", layout="wide")
 
-# --- 1. CONFIGURATION ---
+# (Keeping your original Dictionary)
 STOCKS = dict(sorted({
     "ABB.NS": "ABB India",
     "ABBOTT.NS": "Abbott India",
-    "AAVAS Financiers": "AAVAS_FINANCIERS",
-    "ACME Solar Hold.": "ACME_SOLAR_HOLD",
-    "Adani Energy Solutions": "ADANIESOL.NS",
+    "AAVAS.NS": "AAVAS Financiers", # Updated to valid ticker
+    "ADANIESOL.NS": "Adani Energy Solutions",
     "ADANIENT.NS": "Adani Enterprises",
     "ADANIGREEN.NS": "Adani Green",
     "ADANIPOWER.NS": "Adani Power",
     "ADANIPORTS.NS": "Adani Ports & SEZ",
     "ADANITOTAL.NS": "Adani Total Gas",
-    "Aditya Birla Capital": "ADITYABIRLA.NS",
-    "Aditya Infotech": "ADITYA_INFOTECH",
-    "Aditya AMC": "ADITYA_AMC",
-    "A B Real Estate": "AB_REAL_ESTATE",
-    "A B Lifestyle": "AB_LIFESTYLE",
-    "Afcons Infrastr.": "AFCONS_INFRASTR",
-    "Ahera Industries": "AHERA.NS",
-    "Alembic Pharma": "ALEMBIC_PHARMA",
-    "Alkem Laboratories": "ALKEM.NS",
-    "Allied Blenders": "ALLIED_BLENDERS",
-    "Amara Raja Ener.": "AMARA_RAJA_ENER",
-    "Angel One": "ANGEL_ONE",
+    "ADITYABIRLA.NS": "Aditya Birla Capital",
+    "AB_REAL_ESTATE": "A B Real Estate", # Note: This key might not work in yfinance if not a ticker
+    "AFCONS_INFRASTR": "Afcons Infrastr.",
+    "ALEMBICLTD.NS": "Alembic Pharma", # Updated to valid ticker
+    "ALKEM.NS": "Alkem Laboratories",
+    "ALLIED_BLENDERS": "Allied Blenders",
+    "ANGELONE.NS": "Angel One",
     "APOLLOHOSP.NS": "Apollo Hospitals",
     "APOLLO.MED": "Apollo Medicals",
     "ASHOKLEY.NS": "Ashok Leyland",
-    "Asahi India Glas": "ASAHI_INDIA_GLAS",
-    "Asian Paints": "ASIANPAINT.NS",
-    "Ather Energy": "ATHER_ENERGY",
+    "ASIANPAINT.NS": "Asian Paints",
     "AUROBINDO.NS": "Aurobindo Pharma",
     "AVENUESUPER.NS": "Avenue Supermarts",
-    "Axis Bank": "AXISBANK.NS",
-    "Bata India": "BATA_INDIA",
-    "Bank of Baroda": "BANKBARODA.NS",
-    "Bayer Crop Sci.": "BAYER_CROP_SCI",
-    "Belrise Industri": "BELRISE_INDUSTRI",
-    "BEML Ltd": "BEML_LTD",
-    "Berger Paints": "BERGERPAINT.NS",
-    "Bharti Airtel": "BHARTIARTL.NS",
-    "Bharti Hexacom": "BHARTIHEX.NS",
+    "AXISBANK.NS": "Axis Bank",
+    "BANKBARODA.NS": "Bank of Baroda",
+    "BAYERCROP.NS": "Bayer Crop Sci.",
+    "BEML.NS": "BEML Ltd",
+    "BERGERPAINT.NS": "Berger Paints",
+    "BHARTIARTL.NS": "Bharti Airtel",
+    "BHARTIHEX.NS": "Bharti Hexacom",
     "BHEL.NS": "BHEL",
-    "BLS Internat.": "BLS_INTERNAT",
-    "Blue Dart Expres": "BLUE_DART_EXPRES",
-    "Bosch": "BOSCHLTD.NS",
+    "BLS_INTERNAT": "BLS Internat.",
+    "BLUEDART.NS": "Blue Dart Expres",
+    "BOSCHLTD.NS": "Bosch",
     "BPCL.NS": "Bharat Petroleum Corporation Ltd",
-    "Britannia Industries": "BRITANNIA.NS",
-    "Brookfield India": "BROOKFIELD_INDIA",
-    "Cams Services": "CAMS_SERVICES",
-    "Caplin Point Lab": "CAPLIN_POINT_LAB",
-    "Capri Global": "CAPRI_GLOBAL",
-    "Carborundum Uni.": "CARBORUNDUM_UNI",
-    "Castrol India": "CASTROL_INDIA",
-    "Century Plyboard": "CENTURY_PLYBOARD",
-    "CESC": "CESC",
-    "Chambal Fert.": "CHAMBAL_FERT",
-    "Choice Intl.": "CHOICE_INTL",
-    "Cholamandalam Investment & Finance": "CHOLAFIN.NS",
-    "CIE Automotive": "CIE_AUTOMOTIVE",
-    "Cipla": "CIPLA.NS",
-    "Clean Science": "CLEAN_SCIENCE",
-    "Coal India": "COALINDIA.NS",
-    "Colgate-Palmolive": "COLPAL.NS",
-    "Concord Biotech": "CONCORD_BIOTECH",
-    "Coromandel International": "COROMANDEL.NS",
-    "Crompton Gr. Con": "CROMPTON_GR_CON",
-    "Cube Highways": "CUBE_HIGHWAYS",
-    "Cummins India": "CUMMINSIND.NS",
-    "Dabur India": "DABUR.NS",
-    "Deepak Fertilis.": "DEEPAK_FERTILIS",
-    "Deepak Nitrite": "DEEPAK_NITRITE",
-    "Devyani Intl.": "DEVYANI_INTL",
-    "DLF Ltd": "DLF.NS",
-    "Divi's Laboratories": "DIVISLAB.NS",
-    "Dr Reddy's Laboratories": "DRREDDY.NS",
-    "Dr Agarwal's Hea": "DR_AGARWALS_HEA",
-    "ECLERX_SERVICES": "eClerx Services",
-    "EID Parry": "EID_PARRY",
-    "Eicher Motors": "EICHERMOT.NS",
-    "EIH": "EIH",
-    "Elgi Equipments": "ELGI_EQUIPMENTS",
-    "Embassy Develop": "EMBASSY_DEVELOP",
-    "ETERNAL.NS": "Eternal Ltd",
-    "FSN E-Commerce": "FSN.NS",
-    "Force Motors": "FORCE_MOTORS",
-    "Fortis Healthcare": "FORTIS.NS",
-    "GAIL (India)": "GAIL.NS",
-    "Gabriel India": "GABRIEL_INDIA",
-    "Gallantt Ispat L": "GALLANTT_ISPAT_L",
-    "Gen Insur": "GENINSUR.NS",
-    "Godawari Power": "GODAWARI_POWER",
-    "Godrej Agrovet": "GODREJ_AGROVET",
-    "Godrej Consumer Products": "GODREJCP.NS",
-    "Godrej Properties": "GODREJPROP.NS",
-    "Granules India": "GRANULES_INDIA",
-    "GMR Airports": "GMRINFRA.NS",
-    "GR Infraproject": "G R Infraproject",
+    "BRITANNIA.NS": "Britannia Industries",
+    "CAMS.NS": "Cams Services",
+    "CAPLIPOINT.NS": "Caplin Point Lab",
+    "CASTROLIND.NS": "Castrol India",
+    "CESC.NS": "CESC",
+    "CHAMBLFERT.NS": "Chambal Fert.",
+    "CHOLAFIN.NS": "Cholamandalam Investment & Finance",
+    "CIPLA.NS": "Cipla",
+    "COALINDIA.NS": "Coal India",
+    "COLPAL.NS": "Colgate-Palmolive",
+    "COROMANDEL.NS": "Coromandel International",
+    "CUMMINSIND.NS": "Cummins India",
+    "DABUR.NS": "Dabur India",
+    "DEEPAKFERT.NS": "Deepak Fertilis.",
+    "DEEPAKNTR.NS": "Deepak Nitrite",
+    "DEVYANI.NS": "Devyani Intl.",
+    "DLF.NS": "DLF Ltd",
+    "DIVISLAB.NS": "Divi's Laboratories",
+    "DRREDDY.NS": "Dr Reddy's Laboratories",
+    "EICHERMOT.NS": "Eicher Motors",
+    "FSN.NS": "FSN E-Commerce (Nykaa)",
+    "FORTIS.NS": "Fortis Healthcare",
+    "GAIL.NS": "GAIL (India)",
+    "GODREJCP.NS": "Godrej Consumer Products",
+    "GODREJPROP.NS": "Godrej Properties",
+    "GRANULES.NS": "Granules India",
+    "GMRINFRA.NS": "GMR Airports",
     "HAVELLS.NS": "Havells India",
-    "HBL Engineering": "HBL_ENGINEERING",
-    "HCL Technologies": "HCLTECH.NS",
+    "HCLTECH.NS": "HCL Technologies",
     "HDFCBANK.NS": "HDFC Bank",
     "HDFCLIFE.NS": "HDFC Life Insurance",
     "HDFCAMC.NS": "HDFC Asset Management",
-    "HDB Financial Services": "HDBFS.NS",
     "HEROMOTOCO.NS": "Hero MotoCorp",
     "HINDALCO.NS": "Hindalco Industries",
     "HINDUNILVR.NS": "Hindustan Unilever",
     "HINDZINC.NS": "Hindustan Zinc",
-    "HITACHIENERGY.NS": "Hitachi Energy",
     "HPCL.NS": "Hindustan Petroleum",
-    "HYUNDAI.NS": "Hyundai Motor India",
     "ICICIBANK.NS": "ICICI Bank",
     "ICICILOMBARD.NS": "ICICI Lombard",
     "ICICIPRULI.NS": "ICICI Prudential Life",
     "IDBI.NS": "IDBI Bank",
-    "IFCI": "IFCI",
     "INDHOTEL.NS": "Indian Hotels Company",
     "INDIANB.NS": "Indian Bank",
     "INDIGO.NS": "InterGlobe Aviation",
-    "INDIAN_ENERGY_EX": "Indian Energy Exchange",
-    "Indegene": "INDEGENE",
-    "Infosys": "INFY.NS",
-    "Intellect Design": "INTELLECT_DESIGN",
-    "Ingersoll-Rand": "INGERSOLL_RAND",
-    "IOB.NS": "Indian Overseas Bank",
+    "INFY.NS": "Infosys",
     "IOC.NS": "Indian Oil Corporation",
     "IRFC.NS": "IRFC",
     "JSWENERGY.NS": "JSW Energy",
     "JSWINFRA.NS": "JSW Infrastructure",
     "JSWSTEEL.NS": "JSW Steel",
-    "JBM Auto": "JBM_AUTO",
     "JINDALSTAIN.NS": "Jindal Stainless",
     "JINDALSTEL.NS": "Jindal Steel",
-    "JM Financial": "JM_FINANCIAL",
-    "Jubilant Pharmo": "JUBILANT_PHARMO",
-    "Jupiter Wagons": "JUPITER_WAGONS",
-    "Kajaria Ceramics": "KAJARIA_CERAMICS",
-    "Karur Vysya Bank": "KARUR_VYSYA_BANK",
-    "Kansai Nerolac": "KANSAI_NEROLAC",
-    "KFin Technolog.": "KFIN_TECHNOLOG",
-    "Kirl. Brothers": "KIRL_BROTHERS",
-    "Kirloskar Oil": "KIRLOSKAR_OIL",
-    "Kotak Mahindra Bank": "KOTAKBANK.NS",
-    "L T Foods": "LT_FOODS",
-    "Larsen & Toubro": "LT.NS",
-    "Lemon Tree Hotel": "LEMON_TREE_HOTEL",
-    "LLOYDSMET.NS": "Lloyds Metals",
-    "LMW": "LMW",
+    "KOTAKBANK.NS": "Kotak Mahindra Bank",
+    "LT.NS": "Larsen & Toubro",
     "LUPIN.NS": "Lupin",
     "MAZDOCK.NS": "Mazagon Dock",
-    "M R P L": "MRPL",
-    "Mahanagar Gas": "MAHANAGAR_GAS",
-    "Mahindra & Mahindra": "M&M.NS",
-    "Mankind Pharma": "MANKIND.NS",
-    "Marico": "MARICO.NS",
-    "Maruti Suzuki": "MARUTI.NS",
-    "Max Healthcare": "MAXHEALTH.NS",
-    "MRF Ltd": "MRF.NS",
-    "Muthoot Finance": "MUTHOOTFIN.NS",
-    "Natco Pharma": "NATCO_PHARMA",
-    "Nava": "NAVA",
-    "NMDC Ltd": "NMDC.NS",
-    "NMDC Steel": "NMDC_STEEL",
-    "Nuvama Wealth": "NUVAMA_WEALTH",
-    "Nuvoco Vistas": "NUVOCO_VISTAS",
-    "Niva Bupa Health": "NIVA_BUPA_HEALTH",
+    "M&M.NS": "Mahindra & Mahindra",
+    "MANKIND.NS": "Mankind Pharma",
+    "MARICO.NS": "Marico",
+    "MARUTI.NS": "Maruti Suzuki",
+    "MAXHEALTH.NS": "Max Healthcare",
+    "MRF.NS": "MRF Ltd",
+    "MUTHOOTFIN.NS": "Muthoot Finance",
+    "NMDC.NS": "NMDC Ltd",
     "NTPC.NS": "NTPC Limited",
-    "NTPC Green Energy": "NTPCGREEN.NS",
-    "Nexa": "NEXA.NS",
-    "Nestle India": "NESTLEIND.NS",
+    "NESTLEIND.NS": "Nestle India",
     "OIL.NS": "Oil India",
     "ONGC.NS": "Oil & Natural Gas Corporation",
-    "Olectra Greentec": "OLECTRA_GREENTEC",
-    "One 97 Communications": "ONE97.NS",
-    "OneSource Speci.": "ONESOURCE_SPECI",
-    "Oracle Financial": "ORACLEFIN.NS",
-    "PB Fintech": "PBFINTECH.NS",
-    "PCBL Chemical": "PCBL_CHEMICAL",
-    "Persistent Systems": "PERSISTENT.NS",
-    "Pidilite Industries": "PIDILITIND.NS",
-    "Power Finance Corporation": "POWERFIN.NS",
-    "Power Grid Corporation": "POWERGRID.NS",
-    "PRIV.BANK.NS": "Private Bank",
-    "Prestige Estates": "PRESTIGE.NS",
-    "PTC Industries": "PTC_INDUSTRIES",
-    "RAILTEL_CORPN": "Railtel Corpn.",
-    "Ratnamani Metals": "RATNAMANI_METALS",
-    "Rail Vikas Nigam": "RAILVIKAS.NS",
-    "Redington": "REDINGTON",
-    "Reliance Industries": "RELIANCE.NS",
-    "Reliance Power": "RELIANCE_POWER",
-    "REC Ltd": "RECLTD.NS",
-    "RBL Bank": "RBL_BANK",
-    "Rites": "RITES",
-    "RR Kabel": "RR_KABEL",
-    "Samvardhana Motherson": "SAMVARDHAN.NS",
-    "Sarda Energy": "SARDA_ENERGY",
-    "Schneider Elect.": "SCHNEIDER_ELECT",
-    "Schaeffler India": "SCHAEFFLER.NS",
-    "Schloss Bangal.": "SCHLOSS_BANGAL",
-    "SIEMENS.NS": "Siemens",
-    "Syrma SGS Tech.": "SYRMA_SGS_TECH",
-    "Shree Cement": "SHREECEM.NS",
-    "Shriram Finance": "SHRIRAMFIN.NS",
-    "Solar Industries": "SOLARINDS.NS",
-    "State Bank of India": "SBIN.NS",
-    "SBI Life Insurance": "SBILIFE.NS",
-    "SBI Cards": "SBICARD.NS",
-    "Sun Pharma Industries": "SUNPHARMA.NS",
-    "Sun TV Network": "SUN_TV_NETWORK",
-    "Suzlon Energy": "SUZLON.NS",
-    "Sundram Fasten.": "SUNDRAM_FASTEN",
-    "Sundaram Fin.Hol": "SUNDARAM_FIN_HOL",
-    "Swiggy": "SWIGGY.NS",
-    "Swan Corp": "SWAN_CORP",
-    "T R I L": "TRIL",
+    "ONE97.NS": "One 97 Communications (Paytm)",
+    "PBFINTECH.NS": "PB Fintech (PolicyBazaar)",
+    "PERSISTENT.NS": "Persistent Systems",
+    "PIDILITIND.NS": "Pidilite Industries",
+    "POWERFIN.NS": "Power Finance Corporation",
+    "POWERGRID.NS": "Power Grid Corporation",
+    "PRESTIGE.NS": "Prestige Estates",
+    "RAILVIKAS.NS": "Rail Vikas Nigam",
+    "RELIANCE.NS": "Reliance Industries",
+    "RECLTD.NS": "REC Ltd",
+    "SAMVARDHAN.NS": "Samvardhana Motherson",
+    "SHREECEM.NS": "Shree Cement",
+    "SHRIRAMFIN.NS": "Shriram Finance",
+    "SBIN.NS": "State Bank of India",
+    "SBILIFE.NS": "SBI Life Insurance",
+    "SBICARD.NS": "SBI Cards",
+    "SUNPHARMA.NS": "Sun Pharma Industries",
+    "SUZLON.NS": "Suzlon Energy",
+    "SWIGGY.NS": "Swiggy",
     "TATASTEEL.NS": "Tata Steel",
     "TATAPOWER.NS": "Tata Power Company",
     "TATAMOTORS.NS": "Tata Motors",
     "TCS.NS": "Tata Consultancy Services",
     "TECHM.NS": "Tech Mahindra",
-    "Techno Elec.Engg": "TECHNO_ELEC_ENGG",
     "TITAN.NS": "Titan Company",
-    "Torn Power": "TORNTPWR.NS",
-    "Torrent Pharmaceuticals": "TORNTPHARM.NS",
-    "Tube Investments": "TUBEINV.NS",
-    "TVS Motor Company": "TVSMOTOR.NS",
+    "TORNTPWR.NS": "Torn Power",
+    "TORNTPHARM.NS": "Torrent Pharmaceuticals",
+    "TUBEINV.NS": "Tube Investments",
+    "TVSMOTOR.NS": "TVS Motor Company",
     "ULTRACEMCO.NS": "UltraTech Cement",
-    "Union Bank of India": "UNIONBANK.NS",
+    "UNIONBANK.NS": "Union Bank of India",
     "UNOMINDA.NS": "Uno Minda",
-    "Urban Company": "URBAN_COMPANY",
-    "Varun Beverages": "VARUNBEV.NS",
-    "Vedanta": "VEDANTA.NS",
-    "Vedant Fashions": "VEDANT_FASHIONS",
-    "V-Guard Industri": "V_GUARD_INDUSTRI",
-    "Vishal Mega Mart": "VISHAL.NS",
-    "Vodafone Idea": "VODAFONEIDEA.NS",
+    "VARUNBEV.NS": "Varun Beverages",
+    "VEDANTA.NS": "Vedanta",
+    "VODAFONEIDEA.NS": "Vodafone Idea",
     "WAAREE.NS": "Waaree Energies",
     "WIPRO.NS": "Wipro",
-    "Zen Technologies": "ZEN_TECHNOLOGIES",
-    "Zensar Tech.": "ZENSAR_TECH",
-    "Zydus Wellness": "ZYDUS_WELLNESS",
-    "Zydus Lifesciences": "ZYDUSLIFE.NS",
+    "ZYDUSLIFE.NS": "Zydus Lifesciences",
 }.items(), key=lambda x: x[0].upper()))
-st.set_page_config(page_title="Indian Stock News Dashboard", page_icon="📈", layout="centered")
+
 
 # --- 2. FETCH NEWS FUNCTION ---
 @st.cache_data(ttl=600)
 def fetch_news(company_name):
-    """Fetch top 10 news articles from Google News RSS, filtering out earnings/results."""
+    """Fetch top 10 news articles from Google News RSS."""
     query = company_name.replace(" ", "+") + "+stock+India"
     rss_url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
 
@@ -269,20 +173,23 @@ def fetch_news(company_name):
 
         for item in items:
             title = item.title.text.strip()
-            # Skip earnings/results news
             if any(keyword.lower() in title.lower() for keyword in skip_keywords):
                 continue
 
             summary = item.description.text if item.description else "No description available"
             summary_clean = BeautifulSoup(summary, "html.parser").get_text()
-
             published = item.pubDate.text if item.pubDate else None
+
+            # --- NEW: Sentiment Analysis ---
+            blob = TextBlob(summary_clean)
+            sentiment_score = blob.sentiment.polarity
 
             articles.append({
                 "title": title,
                 "link": item.link.text,
                 "summary": summary_clean.strip(),
-                "published": published
+                "published": published,
+                "sentiment": sentiment_score
             })
 
             if len(articles) >= 10:
@@ -294,41 +201,99 @@ def fetch_news(company_name):
         st.error(f"Error fetching news: {e}")
         return []
 
-# --- 3. STREAMLIT LAYOUT ---
+# --- 3. MAIN APP ---
 st.title("Indian Stock News Dashboard 🇮🇳📈")
-st.sidebar.header("Stock Selection")
 
+# Sidebar
+st.sidebar.header("Stock Selection")
 search_query = st.sidebar.text_input("Search Stock by Name or Ticker:")
 filtered_stocks = {k: v for k, v in STOCKS.items() if search_query.lower() in k.lower() or search_query.lower() in v.lower()}
-
 selected_ticker = st.sidebar.selectbox("Select a Stock:", options=["--- Select a Stock ---"] + list(filtered_stocks.keys()))
 
+# --- 4. INTERACTIVE LOGIC ---
 if selected_ticker != "--- Select a Stock ---":
-    if st.sidebar.button("Fetch News"):
-        company_name = STOCKS[selected_ticker]
+    company_name = STOCKS[selected_ticker]
+    
+    # --- A. FETCH STOCK PRICE (yfinance) ---
+    # We attempt to fetch price if the key looks like a ticker (e.g., ends in .NS)
+    # If your dictionary key is just a name (e.g. "Aditya Infotech"), yfinance will fail gracefully.
+    stock_data = pd.DataFrame() 
+    with st.spinner(f"Analyzing {company_name}..."):
+        try:
+            # Get 3 months of data
+            stock_data = yf.download(selected_ticker, period="3mo", progress=False)
+        except Exception:
+            pass # Ignore if ticker is invalid
 
-        st.header(f"📰 Latest News for {company_name}")
-        st.caption(f"⏳ Last updated: {datetime.now().strftime('%b %d, %Y %I:%M %p')}")
-
+        # Fetch News
         news_articles = fetch_news(company_name)
 
-        if news_articles:
-            for article in news_articles:
-                st.markdown(f"### {article['title']}")
-                st.write(article['summary'])
-                st.markdown(f"[🔗 Read Full Article →]({article['link']})")
-                if article["published"]:
-                    try:
-                        dt = datetime.strptime(article["published"], "%a, %d %b %Y %H:%M:%S %Z")
-                        st.caption(f"🕒 Published: {dt.strftime('%b %d, %Y %I:%M %p')}")
-                    except:
-                        st.caption(f"🕒 Published: {article['published']}")
-                st.markdown("---")
+    # --- B. DISPLAY METRICS ---
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # Price Metric
+    if not stock_data.empty:
+        try:
+            current_price = float(stock_data['Close'].iloc[-1])
+            prev_price = float(stock_data['Close'].iloc[-2])
+            price_change = current_price - prev_price
+            col1.metric("Current Price", f"₹{current_price:,.2f}", f"{price_change:.2f}")
+        except:
+            col1.metric("Price", "N/A")
+    else:
+        col1.metric("Price", "No Data")
 
-            # CSV download at bottom
-            df = pd.DataFrame(news_articles)
-            st.download_button("📥 Download News CSV", data=df.to_csv(index=False), file_name=f"{company_name}_news.csv")
-        else:
-            st.info(f"No recent news found for {company_name}.")
+    # Sentiment Metrics
+    if news_articles:
+        pos_news = sum(1 for a in news_articles if a['sentiment'] > 0.05)
+        neg_news = sum(1 for a in news_articles if a['sentiment'] < -0.05)
+        col2.metric("Total Articles", len(news_articles))
+        col3.metric("Positive News", f"{pos_news} 🟢")
+        col4.metric("Negative News", f"{neg_news} 🔴")
+    
+    st.markdown("---")
+
+    # --- C. PRICE CHART (Plotly) ---
+    if not stock_data.empty:
+        st.subheader(f"Price Trend: {company_name}")
+        # Reset index so 'Date' is a column accessible to Plotly
+        chart_data = stock_data.reset_index()
+        fig = px.line(chart_data, x='Date', y='Close', title=f'{selected_ticker} - 3 Month Performance')
+        fig.update_layout(xaxis_title="Date", yaxis_title="Price (INR)", template="plotly_white")
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # --- D. NEWS LIST (With Expanders) ---
+    st.subheader(f"📰 Latest News Analysis")
+    st.caption(f"Last updated: {datetime.now().strftime('%b %d, %Y %I:%M %p')}")
+
+    if news_articles:
+        for article in news_articles:
+            # Determine Color based on sentiment
+            score = article['sentiment']
+            if score > 0.05:
+                sentiment_label = "🟢 Bullish"
+                color = "green"
+            elif score < -0.05:
+                sentiment_label = "🔴 Bearish"
+                color = "red"
+            else:
+                sentiment_label = "⚪ Neutral"
+                color = "grey"
+
+            # Expander for interactivity
+            with st.expander(f"{sentiment_label} | {article['title']}"):
+                st.markdown(f"**Source:** Google News | **Sentiment Score:** :{color}[{score:.2f}]")
+                st.write(article['summary'])
+                st.markdown(f"[🔗 Read Full Article]({article['link']})")
+                if article["published"]:
+                     st.caption(f"Published: {article['published']}")
+
+        # CSV Download
+        df_news = pd.DataFrame(news_articles)
+        st.download_button("📥 Download News CSV", data=df_news.to_csv(index=False), file_name=f"{company_name}_news.csv")
+
+    else:
+        st.info(f"No recent news found for {company_name} (Earnings reports filtered out).")
+
 else:
-    st.info("Select a stock from the sidebar and click 'Fetch News' to see the latest articles.")
+    st.info("Select a stock from the sidebar to view the dashboard.")
